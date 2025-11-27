@@ -24,9 +24,14 @@ export class ConversionController {
       const ttlMinutes = 30;
       const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
 
+      // If the use case returned an absolute URL (S3), use it as-is; otherwise prefix with host
+      const finalUrl = downloadUrl.startsWith("http")
+        ? downloadUrl
+        : `${req.protocol}://${req.get("host")}${downloadUrl}`;
+
       res.status(200).json({
         message: `File converted successfully. This link is available for ${ttlMinutes} minutes.`,
-        downloadUrl: `${req.protocol}://${req.get("host")}${downloadUrl}`,
+        downloadUrl: finalUrl,
         expiresAt,
       });
     } catch (error) {

@@ -2,6 +2,25 @@ import fs from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
 import { IConversionService } from "../../domain/services/IConversionService";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+const S3_BUCKET = process.env.S3_BUCKET;
+const S3_ENDPOINT = process.env.S3_ENDPOINT;
+const S3_PUBLIC_BASE_URL = process.env.S3_PUBLIC_BASE_URL; // e.g. https://<bucket>.<region>.digitaloceanspaces.com
+
+let s3Client: S3Client | null = null;
+if (S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  const region = process.env.AWS_REGION || "us-east-1";
+  const endpoint = S3_ENDPOINT ? `https://${S3_ENDPOINT}` : undefined;
+  s3Client = new S3Client({
+    region,
+    endpoint,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  });
+}
 
 type ConversionType = "md-to-pdf" | "pdf-to-md" | "pdf-to-txt" | "pdf-to-word";
 type OutputExtension = ".pdf" | ".md" | ".txt" | ".docx";
@@ -50,18 +69,53 @@ export class ConvertFileUseCase {
       "../../infrastructure/public/converted"
     );
 
-    // Ensure the output directory exists
+    // Ensure the output directory exists (used as fallback)
     await fs.mkdir(convertedDir, { recursive: true });
 
+    // If S3 is configured, upload to bucket and return public URL
+    if (s3Client && S3_BUCKET) {
+      const body = Buffer.isBuffer(outputBuffer) ? outputBuffer : Buffer.from(String(outputBuffer));
+      const key = `converted/${outputFileName}`;
+      try {
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: key,
+            Body: body,
+            ACL: "public-read",
+            ContentType: getContentType(outputFileName),
+          })
+        );
+
+        // Clean up the original uploaded file
+        await fs.unlink(filePath);
+
+        const publicBase = S3_PUBLIC_BASE_URL ? S3_PUBLIC_BASE_URL.replace(/\/$/, "") : undefined;
+        const publicUrl = publicBase ? `${publicBase}/${key}` : `https://${S3_BUCKET}.${S3_ENDPOINT || "s3.amazonaws.com"}/${key}`;
+        return publicUrl;
+      } catch (e) {
+        // fallback to local write if upload fails
+        const outputPath = path.join(convertedDir, outputFileName);
+        await fs.writeFile(outputPath, outputBuffer);
+        await fs.unlink(filePath);
+        return `/converted/${outputFileName}`;
+      }
+    }
+
+    // default: write to local converted directory
     const outputPath = path.join(convertedDir, outputFileName);
     await fs.writeFile(outputPath, outputBuffer);
-
-    // NOTE: Deletion is handled by a periodic cleanup job (cron).
-
     // Clean up the original uploaded file
     await fs.unlink(filePath);
-
     const downloadUrl = `/converted/${outputFileName}`;
     return downloadUrl;
   }
+}
+
+function getContentType(filename: string) {
+  if (filename.endsWith('.pdf')) return 'application/pdf';
+  if (filename.endsWith('.md')) return 'text/markdown';
+  if (filename.endsWith('.txt')) return 'text/plain';
+  if (filename.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  return 'application/octet-stream';
 }

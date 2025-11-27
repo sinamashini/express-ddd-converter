@@ -124,3 +124,23 @@ npm run cleanup:daemon
 
 Deletion records are appended to `logs/deletions.log` for auditability.
 
+## ☁️ DigitalOcean Spaces (S3) integration
+
+You can configure the app to upload converted files to DigitalOcean Spaces (S3-compatible) instead of writing them to the local `infrastructure/public/converted` directory. When configured, the app will return a public URL to the uploaded file.
+
+Required environment variables (example):
+
+```
+AWS_REGION=sfo3
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret
+S3_BUCKET=converter-sina
+S3_ENDPOINT=sfo3.digitaloceanspaces.com
+S3_PUBLIC_BASE_URL=https://converter-sina.sfo3.digitaloceanspaces.com
+```
+
+Notes:
+- Store secrets (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) in environment variables or your deployment's secret manager (do not commit them to the repo).
+- If `S3_PUBLIC_BASE_URL` is set, it will be used to build the returned download URL. Otherwise the code falls back to `https://{bucket}.{endpoint}/{key}`.
+- The cleanup script (`npm run cleanup`) will also remove expired objects from the configured S3 bucket (objects under `converted/` prefix).
+
