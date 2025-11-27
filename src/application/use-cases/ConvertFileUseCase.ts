@@ -94,13 +94,13 @@ export class ConvertFileUseCase {
       const convertedBody = Buffer.isBuffer(outputBuffer) ? outputBuffer : Buffer.from(String(outputBuffer));
       const convertedKey = `converted/${outputFileName}`;
       try {
-        // upload original (temp)
+        // upload original (temp) as public-read
         await s3Client.send(
           new PutObjectCommand({
             Bucket: S3_BUCKET,
             Key: originalKey,
             Body: originalBody,
-            ACL: "private",
+            ACL: "public-read",
             ContentType: getContentType(path.basename(filePath)),
           })
         );
