@@ -79,11 +79,11 @@ export class ConvertFileUseCase {
     const baseName = path.basename(originalName, path.extname(originalName));
     const uniqueSuffix = randomBytes(4).toString("hex");
     const outputFileName = `${baseName}-${uniqueSuffix}${outputExtensions[type]}`;
+    // Ensure the output directory exists (used as fallback)
     const convertedDir = path.join(
       __dirname,
       "../../infrastructure/public/converted"
     );
-    // Ensure the output directory exists (used as fallback)
     await fs.mkdir(convertedDir, { recursive: true });
 
     // If S3 is configured, upload source to tmp/ and generated to generated/
@@ -131,17 +131,20 @@ export class ConvertFileUseCase {
             }/${outKey}`;
         return publicUrl;
       } catch (e) {
-        // fallback to local write
-        const outputPath = path.join(convertedDir, outputFileName);
-        await fs.writeFile(outputPath, outputBuffer);
-        const downloadUrl = `/converted/${outputFileName}`;
-        return downloadUrl;
+        // if S3 upload fails, fall through to local fallback
+        console.warn(
+          "S3 upload failed, falling back to local write:",
+          (e as Error).message
+        );
       }
     }
 
-    // default local fallback
+    // Local fallback: write converted file to `infrastructure/public/converted`
     const outputPath = path.join(convertedDir, outputFileName);
-    await fs.writeFile(outputPath, outputBuffer);
+    const outBody = Buffer.isBuffer(outputBuffer)
+      ? outputBuffer
+      : Buffer.from(String(outputBuffer));
+    await fs.writeFile(outputPath, outBody);
     const downloadUrl = `/converted/${outputFileName}`;
     return downloadUrl;
   }

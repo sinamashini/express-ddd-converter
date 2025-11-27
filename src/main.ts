@@ -33,75 +33,8 @@ app.get("/api/postman.json", (_req: any, res: any) => {
   }
 });
 
-// On startup: clean up converted files older than TTL and schedule deletion for remaining ones
-async function initConvertedCleanup() {
-  try {
-    const convertedDir = path.join(__dirname, "./infrastructure/public/converted");
-    const TTL_MS = 30 * 60 * 1000; // 30 minutes
-    const logFile = path.join(__dirname, "../../logs/deletions.log");
-
-    // ensure directory exists
-    await fs.mkdir(convertedDir, { recursive: true });
-
-    const files = await fs.readdir(convertedDir);
-    for (const file of files) {
-      const filePath = path.join(convertedDir, file);
-      try {
-        const stat = await fs.stat(filePath);
-        const age = Date.now() - stat.mtime.getTime();
-        if (age >= TTL_MS) {
-          // too old, delete
-          await fs.unlink(filePath);
-          // log deletion
-          try {
-            await fs.mkdir(path.dirname(logFile), { recursive: true });
-            await fs.appendFile(logFile, `${new Date().toISOString()} deleted ${file}\n`);
-          } catch (e) {
-            // ignore logging errors
-          }
-        } else {
-          // schedule deletion after remaining time
-          const remaining = TTL_MS - age;
-          setTimeout(async () => {
-            try {
-              await fs.unlink(filePath);
-            } catch (e) {
-              // ignore
-            }
-          }, remaining);
-        }
-      } catch (e) {
-        // ignore errors for individual files
-      }
-    }
-  } catch (e) {
-    // ignore startup cleanup errors
-  }
-}
-
-initConvertedCleanup();
-
 // Cron job: run every minute to delete converted files older than TTL
 const TTL_MS = 30 * 60 * 1000; // 30 minutes
-cron.schedule("* * * * *", async () => {
-  try {
-    const convertedDir = path.join(__dirname, "./infrastructure/public/converted");
-    const files = await fs.readdir(convertedDir);
-    for (const file of files) {
-      const filePath = path.join(convertedDir, file);
-      try {
-        const stat = await fs.stat(filePath);
-        if (Date.now() - stat.mtime.getTime() >= TTL_MS) {
-          await fs.unlink(filePath);
-        }
-      } catch (e) {
-        // ignore per-file errors
-      }
-    }
-  } catch (e) {
-    // ignore cron job errors
-  }
-});
 
 // Also run S3 cleanup if configured: remove objects under tmp/ and generated/ older than TTL
 (() => {
