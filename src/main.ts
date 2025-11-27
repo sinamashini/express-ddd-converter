@@ -36,6 +36,7 @@ async function initConvertedCleanup() {
   try {
     const convertedDir = path.join(__dirname, "./infrastructure/public/converted");
     const TTL_MS = 30 * 60 * 1000; // 30 minutes
+    const logFile = path.join(__dirname, "../../logs/deletions.log");
 
     // ensure directory exists
     await fs.mkdir(convertedDir, { recursive: true });
@@ -49,6 +50,13 @@ async function initConvertedCleanup() {
         if (age >= TTL_MS) {
           // too old, delete
           await fs.unlink(filePath);
+          // log deletion
+          try {
+            await fs.mkdir(path.dirname(logFile), { recursive: true });
+            await fs.appendFile(logFile, `${new Date().toISOString()} deleted ${file}\n`);
+          } catch (e) {
+            // ignore logging errors
+          }
         } else {
           // schedule deletion after remaining time
           const remaining = TTL_MS - age;

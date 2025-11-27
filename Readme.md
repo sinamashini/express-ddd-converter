@@ -104,3 +104,23 @@ git commit -m "chore: add .gitkeep for converted files directory"
 
 Note: it's usually recommended *not* to commit generated files (actual converted outputs). Tracking the folder only (via `.gitkeep`) is a harmless way to ensure the directory exists in the repository.
 
+## 🧹 Cleanup options and how to run
+
+The project includes a small cleanup utility to remove converted files older than 30 minutes. You can run it manually, run it as a background daemon, or rely on the in-process cron job when running the dev server.
+
+- Run once (manual):
+
+```sh
+npm run cleanup
+```
+
+- Run as a daemon (runs every minute):
+
+```sh
+npm run cleanup:daemon
+```
+
+- In-process cron: the dev server (`npm run dev`) runs a cleanup job every minute. Running the server is sufficient for local development.
+
+Deletion records are appended to `logs/deletions.log` for auditability.
+
