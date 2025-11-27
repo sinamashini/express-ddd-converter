@@ -7,29 +7,45 @@ const cron = require('node-cron');
 const TTL_MS = 30 * 60 * 1000; // 30 minutes
 const convertedDir = path.join(process.cwd(), 'infrastructure/public/converted');
 const logFile = path.join(process.cwd(), 'logs/deletions.log');
-const S3_BUCKET = process.env.S3_BUCKET;
-const S3_ENDPOINT = process.env.S3_ENDPOINT;
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+// Load configs from configs/index.cjs if present
+let config = {};
+try {
+  config = require(path.join(process.cwd(), 'configs'));
+} catch (e) {
+  config = {};
+}
+
+const S3_BUCKET = config.S3_BUCKET || process.env.S3_BUCKET;
+const S3_ENDPOINT = config.S3_ENDPOINT || process.env.S3_ENDPOINT;
+const AWS_REGION = config.AWS_REGION || process.env.AWS_REGION || 'us-east-1';
 
 let s3 = null;
 let ListObjectsV2Command, DeleteObjectCommand;
-if (S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+if (
+  S3_BUCKET &&
+  (config.AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID) &&
+  (config.AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY)
+) {
   try {
-    const { S3Client } = require('@aws-sdk/client-s3');
-    const cmds = require('@aws-sdk/client-s3');
-    ListObjectsV2Command = cmds.ListObjectsV2Command;
-    DeleteObjectCommand = cmds.DeleteObjectCommand;
+    const {
+      S3Client,
+      ListObjectsV2Command: L,
+      DeleteObjectCommand: D,
+    } = require("@aws-sdk/client-s3");
+    ListObjectsV2Command = L;
+    DeleteObjectCommand = D;
     const endpoint = S3_ENDPOINT ? `https://${S3_ENDPOINT}` : undefined;
     s3 = new S3Client({
       region: AWS_REGION,
       endpoint,
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        accessKeyId: config.AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey:
+          config.AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY,
       },
     });
   } catch (e) {
-    console.error('Failed to initialize S3 client:', e.message);
+    console.error("Failed to initialize S3 client:", e.message);
   }
 }
 
