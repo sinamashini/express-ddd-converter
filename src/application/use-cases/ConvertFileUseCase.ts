@@ -50,12 +50,12 @@ const outputExtensions: Record<ConversionType, OutputExtension> = {
 export class ConvertFileUseCase {
   constructor(private readonly conversionService: IConversionService) {}
 
+  // new signature: accept uploaded buffer and original filename
   public async execute(
-    filePath: string,
+    fileBuffer: Buffer,
+    originalName: string,
     type: ConversionType
   ): Promise<string> {
-    const fileBuffer = await fs.readFile(filePath);
-
     let outputBuffer: Buffer | string;
 
     switch (type) {
@@ -76,67 +76,72 @@ export class ConvertFileUseCase {
     }
 
     // create unique filename to avoid collisions (originalName + random suffix)
-    const baseName = path.basename(filePath, path.extname(filePath));
+    const baseName = path.basename(originalName, path.extname(originalName));
     const uniqueSuffix = randomBytes(4).toString("hex");
     const outputFileName = `${baseName}-${uniqueSuffix}${outputExtensions[type]}`;
     const convertedDir = path.join(
       __dirname,
       "../../infrastructure/public/converted"
     );
-
     // Ensure the output directory exists (used as fallback)
     await fs.mkdir(convertedDir, { recursive: true });
 
-    // If S3 is configured, upload original to `temp/` and converted to `converted/`, return public URL
+    // If S3 is configured, upload source to tmp/ and generated to generated/
     if (s3Client && S3_BUCKET) {
-      const originalBody = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(String(fileBuffer));
-      const originalKey = `temp/${path.basename(filePath)}`;
-      const convertedBody = Buffer.isBuffer(outputBuffer) ? outputBuffer : Buffer.from(String(outputBuffer));
-      const convertedKey = `converted/${outputFileName}`;
+      const tmpKey = `tmp/${baseName}-${uniqueSuffix}${path.extname(
+        originalName
+      )}`;
+      const outKey = `generated/${outputFileName}`;
+      const inputBody = Buffer.isBuffer(fileBuffer)
+        ? fileBuffer
+        : Buffer.from(String(fileBuffer));
       try {
-        // upload original (temp) as public-read
+        // upload original to tmp/ as private
         await s3Client.send(
           new PutObjectCommand({
             Bucket: S3_BUCKET,
-            Key: originalKey,
-            Body: originalBody,
-            ACL: "public-read",
-            ContentType: getContentType(path.basename(filePath)),
+            Key: tmpKey,
+            Body: inputBody,
+            ACL: "private",
+            ContentType: getContentType(originalName),
           })
         );
 
-        // upload converted (public)
+        // upload generated output to generated/ as public
+        const outBody = Buffer.isBuffer(outputBuffer)
+          ? outputBuffer
+          : Buffer.from(String(outputBuffer));
         await s3Client.send(
           new PutObjectCommand({
             Bucket: S3_BUCKET,
-            Key: convertedKey,
-            Body: convertedBody,
+            Key: outKey,
+            Body: outBody,
             ACL: "public-read",
             ContentType: getContentType(outputFileName),
           })
         );
 
-        // remove local files
-        try { await fs.unlink(filePath); } catch(e) {}
-        try { await fs.unlink(path.join(convertedDir, outputFileName)); } catch(e) {}
-
-        const publicBase = S3_PUBLIC_BASE_URL ? S3_PUBLIC_BASE_URL.replace(/\/$/, "") : undefined;
-        const publicUrl = publicBase ? `${publicBase}/${convertedKey}` : `https://${S3_BUCKET}.${S3_ENDPOINT || "s3.amazonaws.com"}/${convertedKey}`;
+        const publicBase = S3_PUBLIC_BASE_URL
+          ? S3_PUBLIC_BASE_URL.replace(/\/$/, "")
+          : undefined;
+        const publicUrl = publicBase
+          ? `${publicBase}/${outKey}`
+          : `https://${S3_BUCKET}.${
+              S3_ENDPOINT || "s3.amazonaws.com"
+            }/${outKey}`;
         return publicUrl;
       } catch (e) {
-        // fallback to local write if upload fails
+        // fallback to local write
         const outputPath = path.join(convertedDir, outputFileName);
         await fs.writeFile(outputPath, outputBuffer);
-        await fs.unlink(filePath);
-        return `/converted/${outputFileName}`;
+        const downloadUrl = `/converted/${outputFileName}`;
+        return downloadUrl;
       }
     }
 
-    // default: write to local converted directory
+    // default local fallback
     const outputPath = path.join(convertedDir, outputFileName);
     await fs.writeFile(outputPath, outputBuffer);
-    // Clean up the original uploaded file
-    await fs.unlink(filePath);
     const downloadUrl = `/converted/${outputFileName}`;
     return downloadUrl;
   }

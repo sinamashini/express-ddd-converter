@@ -11,20 +11,22 @@ export class ConversionController {
     type: "md-to-pdf" | "pdf-to-md" | "pdf-to-txt" | "pdf-to-word"
   ) => {
     try {
-      if (!req.file) {
+      if (!req.file || !req.file.buffer) {
         return res.status(400).json({ message: "No file uploaded." });
       }
 
+      // pass buffer and original name to use case
       const downloadUrl = await this.convertFileUseCase.execute(
-        req.file.path,
+        req.file.buffer,
+        req.file.originalname,
         type
       );
 
-      // expiration info: 30 minutes from now
       const ttlMinutes = 30;
-      const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
+      const expiresAt = new Date(
+        Date.now() + ttlMinutes * 60 * 1000
+      ).toISOString();
 
-      // If the use case returned an absolute URL (S3), use it as-is; otherwise prefix with host
       const finalUrl = downloadUrl.startsWith("http")
         ? downloadUrl
         : `${req.protocol}://${req.get("host")}${downloadUrl}`;

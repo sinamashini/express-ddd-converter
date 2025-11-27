@@ -74,33 +74,44 @@ async function runOnce() {
         const stat = await fsp.stat(filePath);
         if (Date.now() - stat.mtimeMs >= TTL_MS) {
           await fsp.unlink(filePath);
-          console.log('deleted', file);
+          console.log("deleted", file);
           await logDeletion(file);
         }
       } catch (e) {
-        console.error('error handling file', file, e.message);
+        console.error("error handling file", file, e.message);
       }
     }
-    // cleanup S3 objects if configured (both temp/ and converted/ prefixes)
+    // cleanup S3 objects if configured (check both tmp/ and generated/ prefixes)
     if (s3 && S3_BUCKET) {
-      for (const prefix of ['temp/', 'converted/']) {
+      const prefixes = ["tmp/", "generated/", "converted/"];
+      for (const prefix of prefixes) {
         try {
-          const listResp = await s3.send(new ListObjectsV2Command({ Bucket: S3_BUCKET, Prefix: prefix }));
-          const objs = (listResp.Contents || []);
+          const listResp = await s3.send(
+            new ListObjectsV2Command({ Bucket: S3_BUCKET, Prefix: prefix })
+          );
+          const objs = listResp.Contents || [];
           for (const obj of objs) {
             try {
-              const lastMod = obj.LastModified ? new Date(obj.LastModified).getTime() : 0;
+              const lastMod = obj.LastModified
+                ? new Date(obj.LastModified).getTime()
+                : 0;
               if (Date.now() - lastMod >= TTL_MS) {
-                await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: obj.Key }));
-                console.log('deleted s3', obj.Key);
+                await s3.send(
+                  new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: obj.Key })
+                );
+                console.log("deleted s3", obj.Key);
                 await logDeletion(`s3:${obj.Key}`);
               }
             } catch (e) {
-              console.error('error deleting s3 object', obj.Key, e.message);
+              console.error("error deleting s3 object", obj.Key, e.message);
             }
           }
         } catch (e) {
-          console.error('error listing s3 objects for prefix', prefix, e.message);
+          console.error(
+            "error listing s3 objects for prefix",
+            prefix,
+            e.message
+          );
         }
       }
     }
