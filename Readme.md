@@ -88,6 +88,35 @@ curl http://localhost:2200/api/openapi.json
 curl http://localhost:2200/api/postman.json
 ```
 
+## 📤 Client upload examples
+
+Use multipart/form-data for file uploads. Do not set the `Content-Type` header manually when using the browser `fetch` API — the browser will add the required boundary.
+
+- curl example (send a file named `example.md`):
+
+```sh
+curl -F "file=@example.md" http://localhost:2200/api/convert/md-to-pdf
+```
+
+- Browser `fetch` (do not set `Content-Type` header):
+
+```js
+const fd = new FormData();
+fd.append('file', fileInput.files[0]);
+
+fetch('/api/convert/md-to-pdf', {
+	method: 'POST',
+	body: fd,
+})
+	.then(res => res.json())
+	.then(json => console.log(json))
+	.catch(err => console.error(err));
+```
+
+- Postman: select Body → form-data, add a key `file` of type File and pick the file to upload.
+
+If you manually set `Content-Type` to `multipart/form-data` without a boundary, the server will reject the request with a 400 error indicating a missing boundary.
+
 ## ⏳ Converted files expiry
 
 Converted files are stored under `infrastructure/public/converted` and are available via the download link for 30 minutes. After 30 minutes the server will automatically delete the converted file.
