@@ -91,4 +91,3 @@ curl http://localhost:2200/api/openapi.json
 curl http://localhost:2200/api/postman.json
 ```
 
-If you'd like a higher-fidelity Postman conversion, I can switch to the `openapi-to-postmanv2` converter and serve that instead.
