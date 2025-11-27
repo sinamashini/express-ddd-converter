@@ -2,10 +2,10 @@
   "name": "express-ddd-converter",
   "version": "1.0.0",
   "description": "It is a simple express app that handles different conversions like PDF to Markdown, Markdown to PDF, and more.",
-  "main": "dist/main.js",
+  "main": "public/main.js",
   "scripts": {
-    "build": "rimraf ./dist && tsc",
-    "start": "node dist/main.js",
+    "build": "tsc --outDir public",
+    "start": "node public/main.js",
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "cleanup": "node scripts/cleanup.js",
     "cleanup:daemon": "node scripts/cleanup.js --daemon"
