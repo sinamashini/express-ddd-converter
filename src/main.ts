@@ -3,6 +3,8 @@ import path from "path";
 import { conversionRouter } from "./infrastructure/http/routes/conversion.routes";
 import { errorHandler } from "./infrastructure/http/middlewares/errorHandler";
 import { ErrorRequestHandler } from "express";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./infrastructure/http/swagger";
 
 const app = express();
 const PORT = process.env.PORT || 2200;
@@ -13,6 +15,21 @@ app.use(express.json());
 // Serve converted files statically
 const publicDir = path.join(__dirname, "./infrastructure/public");
 app.use(express.static(publicDir));
+
+// Swagger UI
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get("/api/docs.json", (_req: any, res: any) => res.json(swaggerSpec));
+app.get("/api/openapi.json", (_req: any, res: any) => res.json(swaggerSpec));
+
+import { generatePostmanCollection } from "./infrastructure/http/postman";
+app.get("/api/postman.json", (_req: any, res: any) => {
+  try {
+    const collection = generatePostmanCollection(swaggerSpec as any);
+    res.json(collection);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to generate postman collection" });
+  }
+});
 
 // API Routes
 app.use("/api/convert", conversionRouter);
