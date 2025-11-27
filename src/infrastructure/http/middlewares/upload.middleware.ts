@@ -34,5 +34,14 @@ export const uploadMiddleware = (allowedExtension: string) => {
     cb(null, true);
   };
 
-  return multer({ storage, fileFilter }).single("file");
+  const mul = multer({ storage, fileFilter }).single("file");
+
+  // Wrap multer middleware to validate Content-Type header before parsing
+  return (req: any, res: any, next: any) => {
+    const ct = req.headers && req.headers['content-type'];
+    if (!ct || typeof ct !== 'string' || ct.indexOf('multipart/form-data') === -1) {
+      return res.status(400).json({ message: 'Bad Request: Content-Type must be multipart/form-data with a boundary. Use form-data multipart uploads.' });
+    }
+    return mul(req, res, next);
+  };
 };
