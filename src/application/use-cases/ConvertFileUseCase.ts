@@ -87,26 +87,41 @@ export class ConvertFileUseCase {
     // Ensure the output directory exists (used as fallback)
     await fs.mkdir(convertedDir, { recursive: true });
 
-    // If S3 is configured, upload to bucket and return public URL
+    // If S3 is configured, upload original to `temp/` and converted to `converted/`, return public URL
     if (s3Client && S3_BUCKET) {
-      const body = Buffer.isBuffer(outputBuffer) ? outputBuffer : Buffer.from(String(outputBuffer));
-      const key = `converted/${outputFileName}`;
+      const originalBody = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(String(fileBuffer));
+      const originalKey = `temp/${path.basename(filePath)}`;
+      const convertedBody = Buffer.isBuffer(outputBuffer) ? outputBuffer : Buffer.from(String(outputBuffer));
+      const convertedKey = `converted/${outputFileName}`;
       try {
+        // upload original (temp)
         await s3Client.send(
           new PutObjectCommand({
             Bucket: S3_BUCKET,
-            Key: key,
-            Body: body,
+            Key: originalKey,
+            Body: originalBody,
+            ACL: "private",
+            ContentType: getContentType(path.basename(filePath)),
+          })
+        );
+
+        // upload converted (public)
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: convertedKey,
+            Body: convertedBody,
             ACL: "public-read",
             ContentType: getContentType(outputFileName),
           })
         );
 
-        // Clean up the original uploaded file
-        await fs.unlink(filePath);
+        // remove local files
+        try { await fs.unlink(filePath); } catch(e) {}
+        try { await fs.unlink(path.join(convertedDir, outputFileName)); } catch(e) {}
 
         const publicBase = S3_PUBLIC_BASE_URL ? S3_PUBLIC_BASE_URL.replace(/\/$/, "") : undefined;
-        const publicUrl = publicBase ? `${publicBase}/${key}` : `https://${S3_BUCKET}.${S3_ENDPOINT || "s3.amazonaws.com"}/${key}`;
+        const publicUrl = publicBase ? `${publicBase}/${convertedKey}` : `https://${S3_BUCKET}.${S3_ENDPOINT || "s3.amazonaws.com"}/${convertedKey}`;
         return publicUrl;
       } catch (e) {
         // fallback to local write if upload fails
