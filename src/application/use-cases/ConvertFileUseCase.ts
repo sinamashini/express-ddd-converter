@@ -5,7 +5,6 @@ import { IConversionService } from "../../domain/services/IConversionService";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 // Load configs from configs/index.cjs (supports .env.local and .env.prod)
-import path from 'path';
 const configsPath = path.join(process.cwd(), 'configs');
 let config: any = {};
 try {
