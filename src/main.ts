@@ -6,6 +6,7 @@ import { ErrorRequestHandler } from "express";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./infrastructure/http/swagger";
 import fs from "fs/promises";
+import cron from "node-cron";
 import { generatePostmanCollection } from "./infrastructure/http/postman";
 
 const app = express();
@@ -69,6 +70,28 @@ async function initConvertedCleanup() {
 }
 
 initConvertedCleanup();
+
+// Cron job: run every minute to delete converted files older than TTL
+const TTL_MS = 30 * 60 * 1000; // 30 minutes
+cron.schedule("* * * * *", async () => {
+  try {
+    const convertedDir = path.join(__dirname, "./infrastructure/public/converted");
+    const files = await fs.readdir(convertedDir);
+    for (const file of files) {
+      const filePath = path.join(convertedDir, file);
+      try {
+        const stat = await fs.stat(filePath);
+        if (Date.now() - stat.mtime.getTime() >= TTL_MS) {
+          await fs.unlink(filePath);
+        }
+      } catch (e) {
+        // ignore per-file errors
+      }
+    }
+  } catch (e) {
+    // ignore cron job errors
+  }
+});
 
 // API Routes
 app.use("/api/convert", conversionRouter);

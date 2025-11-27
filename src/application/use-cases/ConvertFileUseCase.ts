@@ -56,15 +56,7 @@ export class ConvertFileUseCase {
     const outputPath = path.join(convertedDir, outputFileName);
     await fs.writeFile(outputPath, outputBuffer);
 
-    // schedule deletion after TTL (30 minutes)
-    const TTL_MS = 30 * 60 * 1000; // 30 minutes
-    setTimeout(async () => {
-      try {
-        await fs.unlink(outputPath);
-      } catch (err) {
-        // ignore errors (file may already be removed)
-      }
-    }, TTL_MS);
+    // NOTE: Deletion is handled by a periodic cleanup job (cron).
 
     // Clean up the original uploaded file
     await fs.unlink(filePath);
