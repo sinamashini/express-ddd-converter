@@ -153,23 +153,66 @@ npm run cleanup:daemon
 
 Deletion records are appended to `logs/deletions.log` for auditability.
 
-## ☁️ DigitalOcean Spaces (S3) integration
+## ☁️ S3 / DigitalOcean Spaces integration
 
-You can configure the app to upload converted files to DigitalOcean Spaces (S3-compatible) instead of writing them to the local `infrastructure/public/converted` directory. When configured, the app will return a public URL to the uploaded file.
+You can configure the app to upload converted files to an S3-compatible bucket (DigitalOcean Spaces or AWS S3) instead of writing them to the local `infrastructure/public/converted` directory. When configured, the app uploads the original upload to `tmp/` and the generated output to `generated/` in the bucket and returns a public URL for the generated file.
 
-Required environment variables (example):
+Example environment variables for DigitalOcean Spaces:
 
 ```
 AWS_REGION=sfo3
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret
+AWS_ACCESS_KEY_ID=DO_SPACES_ACCESS_KEY
+AWS_SECRET_ACCESS_KEY=DO_SPACES_SECRET
 S3_BUCKET=converter-sina
 S3_ENDPOINT=sfo3.digitaloceanspaces.com
 S3_PUBLIC_BASE_URL=https://converter-sina.sfo3.digitaloceanspaces.com
 ```
 
-Notes:
-- Store secrets (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) in environment variables or your deployment's secret manager (do not commit them to the repo).
-- If `S3_PUBLIC_BASE_URL` is set, it will be used to build the returned download URL. Otherwise the code falls back to `https://{bucket}.{endpoint}/{key}`.
-- The cleanup script (`npm run cleanup`) will also remove expired objects from the configured S3 bucket (objects under `converted/` prefix).
+Example environment variables for AWS S3:
+
+```
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY
+AWS_SECRET_ACCESS_KEY=AWS_SECRET
+S3_BUCKET=your-aws-bucket-name
+# (AWS does not need S3_ENDPOINT normally)
+```
+
+Quick `configs/index.cjs` example (optional)
+
+```js
+// configs/index.cjs
+require('dotenv').config();
+module.exports = {
+	AWS_REGION: process.env.AWS_REGION,
+	AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+	S3_BUCKET: process.env.S3_BUCKET,
+	S3_ENDPOINT: process.env.S3_ENDPOINT, // e.g. sfo3.digitaloceanspaces.com
+	S3_PUBLIC_BASE_URL: process.env.S3_PUBLIC_BASE_URL, // optional override for public URL
+};
+```
+
+Notes and behavior:
+- Store credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) in environment variables or your deployment's secret manager — do not commit them.
+- If `S3_PUBLIC_BASE_URL` is set, it will be used to build the returned download URL. Otherwise the app falls back to `https://{bucket}.{endpoint}/{key}` for S3-compatible endpoints.
+- The application uploads the incoming file to `tmp/` in the bucket (private) and the converted output to `generated/` (public-readable). Both `tmp/` and `generated/` objects older than the configured TTL (default 30 minutes) are removed by the cleanup job.
+- The cleanup logic checks `tmp/`, `generated/`, and `converted/` prefixes when S3 is configured.
+- TTL is currently 30 minutes by default (see the cleanup code in `src/main.ts` and `scripts/cleanup.js`). To change it, modify the constant in those files.
+
+Cleanup and audit
+- The cleanup script will remove expired objects in the bucket and append deletion records to `logs/deletions.log`.
+- Run the cleanup utility manually:
+
+```sh
+npm run cleanup
+```
+
+- Run it as a background daemon (runs every minute):
+
+```sh
+npm run cleanup:daemon
+```
+
+If you prefer a single centralized cleanup worker in production (recommended for cluster deployments), run the script on a single scheduled worker rather than relying on in-process cron jobs across multiple app instances.
 
