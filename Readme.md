@@ -65,3 +65,30 @@ npm run start
 - ts-node-dev for hot reloading
 - rimraf for clean builds
 - TypeScript types for Express, Node, and more
+
+## 📘 API Docs & Generated Files
+
+The project now exposes an OpenAPI/Swagger UI and a generated Postman collection for easy testing.
+
+- **Swagger UI**: `GET /api/docs` — interactive API docs (web UI)
+- **OpenAPI JSON**: `GET /api/docs.json` and `GET /api/openapi.json` — raw OpenAPI spec
+- **Postman collection**: `GET /api/postman.json` — generated Postman v2.1 collection derived from the OpenAPI spec
+
+You can open the Swagger UI in your browser once the server is running:
+
+```sh
+# start dev server
+npm run dev
+
+# then open
+http://localhost:2200/api/docs
+```
+
+Or fetch the JSON directly:
+
+```sh
+curl http://localhost:2200/api/openapi.json
+curl http://localhost:2200/api/postman.json
+```
+
+If you'd like a higher-fidelity Postman conversion, I can switch to the `openapi-to-postmanv2` converter and serve that instead.
