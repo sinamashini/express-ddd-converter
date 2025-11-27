@@ -20,9 +20,14 @@ export class ConversionController {
         type
       );
 
+      // expiration info: 30 minutes from now
+      const ttlMinutes = 30;
+      const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
+
       res.status(200).json({
-        message: "File converted successfully",
+        message: `File converted successfully. This link is available for ${ttlMinutes} minutes.`,
         downloadUrl: `${req.protocol}://${req.get("host")}${downloadUrl}`,
+        expiresAt,
       });
     } catch (error) {
       next(error);

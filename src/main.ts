@@ -5,6 +5,8 @@ import { errorHandler } from "./infrastructure/http/middlewares/errorHandler";
 import { ErrorRequestHandler } from "express";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./infrastructure/http/swagger";
+import fs from "fs/promises";
+import { generatePostmanCollection } from "./infrastructure/http/postman";
 
 const app = express();
 const PORT = process.env.PORT || 2200;
@@ -19,9 +21,6 @@ app.use(express.static(publicDir));
 // Swagger UI
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get("/api/docs.json", (_req: any, res: any) => res.json(swaggerSpec));
-app.get("/api/openapi.json", (_req: any, res: any) => res.json(swaggerSpec));
-
-import { generatePostmanCollection } from "./infrastructure/http/postman";
 app.get("/api/postman.json", (_req: any, res: any) => {
   try {
     const collection = generatePostmanCollection(swaggerSpec as any);
@@ -30,6 +29,46 @@ app.get("/api/postman.json", (_req: any, res: any) => {
     res.status(500).json({ error: "Failed to generate postman collection" });
   }
 });
+
+// On startup: clean up converted files older than TTL and schedule deletion for remaining ones
+async function initConvertedCleanup() {
+  try {
+    const convertedDir = path.join(__dirname, "./infrastructure/public/converted");
+    const TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+    // ensure directory exists
+    await fs.mkdir(convertedDir, { recursive: true });
+
+    const files = await fs.readdir(convertedDir);
+    for (const file of files) {
+      const filePath = path.join(convertedDir, file);
+      try {
+        const stat = await fs.stat(filePath);
+        const age = Date.now() - stat.mtime.getTime();
+        if (age >= TTL_MS) {
+          // too old, delete
+          await fs.unlink(filePath);
+        } else {
+          // schedule deletion after remaining time
+          const remaining = TTL_MS - age;
+          setTimeout(async () => {
+            try {
+              await fs.unlink(filePath);
+            } catch (e) {
+              // ignore
+            }
+          }, remaining);
+        }
+      } catch (e) {
+        // ignore errors for individual files
+      }
+    }
+  } catch (e) {
+    // ignore startup cleanup errors
+  }
+}
+
+initConvertedCleanup();
 
 // API Routes
 app.use("/api/convert", conversionRouter);

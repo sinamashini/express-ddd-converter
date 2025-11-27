@@ -70,9 +70,6 @@ npm run start
 
 The project now exposes an OpenAPI/Swagger UI and a generated Postman collection for easy testing.
 
-- **Swagger UI**: `GET /api/docs` — interactive API docs (web UI)
-- **OpenAPI JSON**: `GET /api/docs.json` and `GET /api/openapi.json` — raw OpenAPI spec
-- **Postman collection**: `GET /api/postman.json` — generated Postman v2.1 collection derived from the OpenAPI spec
 
 You can open the Swagger UI in your browser once the server is running:
 
@@ -90,4 +87,20 @@ Or fetch the JSON directly:
 curl http://localhost:2200/api/openapi.json
 curl http://localhost:2200/api/postman.json
 ```
+
+## ⏳ Converted files expiry
+
+Converted files are stored under `infrastructure/public/converted` and are available via the download link for 30 minutes. After 30 minutes the server will automatically delete the converted file.
+
+If you want this folder tracked in Git (for example to include a placeholder), create a `.gitkeep` file inside it and commit that file. Example:
+
+```sh
+# create folder (if missing) and add a .gitkeep so Git tracks the directory
+mkdir -p infrastructure/public/converted
+touch infrastructure/public/converted/.gitkeep
+git add infrastructure/public/converted/.gitkeep
+git commit -m "chore: add .gitkeep for converted files directory"
+```
+
+Note: it's usually recommended *not* to commit generated files (actual converted outputs). Tracking the folder only (via `.gitkeep`) is a harmless way to ensure the directory exists in the repository.
 

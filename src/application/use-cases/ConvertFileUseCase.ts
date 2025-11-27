@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { randomBytes } from "crypto";
 import { IConversionService } from "../../domain/services/IConversionService";
 
 type ConversionType = "md-to-pdf" | "pdf-to-md" | "pdf-to-txt" | "pdf-to-word";
@@ -40,9 +41,10 @@ export class ConvertFileUseCase {
         throw new Error("Unsupported conversion type");
     }
 
-    const outputFileName = `${path.basename(filePath, path.extname(filePath))}${
-      outputExtensions[type]
-    }`;
+    // create unique filename to avoid collisions (originalName + random suffix)
+    const baseName = path.basename(filePath, path.extname(filePath));
+    const uniqueSuffix = randomBytes(4).toString("hex");
+    const outputFileName = `${baseName}-${uniqueSuffix}${outputExtensions[type]}`;
     const convertedDir = path.join(
       __dirname,
       "../../infrastructure/public/converted"
@@ -53,6 +55,16 @@ export class ConvertFileUseCase {
 
     const outputPath = path.join(convertedDir, outputFileName);
     await fs.writeFile(outputPath, outputBuffer);
+
+    // schedule deletion after TTL (30 minutes)
+    const TTL_MS = 30 * 60 * 1000; // 30 minutes
+    setTimeout(async () => {
+      try {
+        await fs.unlink(outputPath);
+      } catch (err) {
+        // ignore errors (file may already be removed)
+      }
+    }, TTL_MS);
 
     // Clean up the original uploaded file
     await fs.unlink(filePath);
