@@ -9,6 +9,7 @@ import {
   ensureConvertedDir,
   getPublicUrlForKey,
 } from "../../infrastructure/storage/storageService";
+import { getContentType } from "../../infrastructure/storage/storageService";
 
 type ConversionType = "md-to-pdf" | "pdf-to-md" | "pdf-to-txt" | "pdf-to-word";
 type OutputExtension = ".pdf" | ".md" | ".txt" | ".docx";
@@ -81,10 +82,4 @@ export class ConvertFileUseCase {
   }
 }
 
-function getContentType(filename: string) {
-  if (filename.endsWith('.pdf')) return 'application/pdf';
-  if (filename.endsWith('.md')) return 'text/markdown';
-  if (filename.endsWith('.txt')) return 'text/plain';
-  if (filename.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  return 'application/octet-stream';
-}
+// getContentType is provided by storageService
