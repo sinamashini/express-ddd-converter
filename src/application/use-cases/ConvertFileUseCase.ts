@@ -62,7 +62,8 @@ export class ConvertFileUseCase {
 
     // Try S3 first using the storage service helpers
     const tmpKey = `tmp/${baseName}-${uniqueSuffix}${path.extname(originalName)}`;
-    const outKey = `generated/${outputFileName}`;
+    // upload generated outputs under the `converted/` prefix so URLs match expectations
+    const outKey = `converted/${outputFileName}`;
     const inputBody = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(String(fileBuffer));
     try {
       await uploadTmp(tmpKey, inputBody, getContentType(originalName));
