@@ -57,3 +57,12 @@ export function getPublicUrlForKey(key: string) {
   }
   return null;
 }
+
+export function getContentType(filename: string) {
+  if (filename.endsWith(".pdf")) return "application/pdf";
+  if (filename.endsWith(".md")) return "text/markdown";
+  if (filename.endsWith(".txt")) return "text/plain";
+  if (filename.endsWith(".docx"))
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  return "application/octet-stream";
+}
