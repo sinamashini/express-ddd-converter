@@ -17,8 +17,19 @@ const PORT = process.env.PORT || 2200;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
+// Serve locally stored converted files (fallback when S3 is not used)
+const convertedStaticDir = path.join(
+  __dirname,
+  "infrastructure/public/converted"
+);
+app.use("/converted", express.static(convertedStaticDir));
+
 // Swagger UI
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Redirect root to API docs for easy discovery
+app.get("/", (_req, res) => {
+  res.redirect("/api/docs");
+});
 app.get("/api/docs.json", (_req: any, res: any) => res.json(swaggerSpec));
 app.get("/api/postman.json", (req: any, res: any) => {
   try {

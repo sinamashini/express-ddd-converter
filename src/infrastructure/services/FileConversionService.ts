@@ -4,9 +4,18 @@ import pdfParse from "pdf-parse";
 import { IConversionService } from "../../domain/services/IConversionService";
 
 export class FileConversionService implements IConversionService {
-  public async mdToPdf(data: Buffer): Promise<Buffer> {
-    const pdf = await mdToPdf({ content: data.toString() });
-    return pdf.content;
+  public async mdToPdf(
+    data: Buffer,
+    options?: { direction?: "ltr" | "rtl" }
+  ): Promise<Buffer> {
+    const direction = options?.direction === "rtl" ? "rtl" : "ltr";
+    let content = data.toString();
+    if (direction === "rtl") {
+      content = `<div dir="rtl" style="direction: rtl; unicode-bidi: bidi-override; text-align: right;">\n\n${content}\n\n</div>`;
+    }
+
+    const pdf = await mdToPdf({ content });
+    return pdf.content as Buffer;
   }
 
   public async pdfToMd(data: Buffer): Promise<string> {

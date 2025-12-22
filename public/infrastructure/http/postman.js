@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generatePostmanCollection = generatePostmanCollection;
-function generatePostmanCollection(swagger) {
-    const baseUrl = (swagger.servers && swagger.servers[0] && swagger.servers[0].url) || "http://localhost:2200";
+function generatePostmanCollection(swagger, baseUrl) {
+    const defaultBase = (swagger.servers && swagger.servers[0] && swagger.servers[0].url) ||
+        "http://localhost:2200";
+    const base = baseUrl || defaultBase;
     const items = [];
     for (const [path, pathItem] of Object.entries(swagger.paths || {})) {
         if (!pathItem)
@@ -10,14 +12,16 @@ function generatePostmanCollection(swagger) {
         const methods = Object.entries(pathItem);
         for (const [method, operation] of methods) {
             if (["get", "post", "put", "delete", "patch", "head", "options"].includes(method)) {
-                const name = operation.summary || operation.operationId || `${method.toUpperCase()} ${path}`;
+                const name = operation.summary ||
+                    operation.operationId ||
+                    `${method.toUpperCase()} ${path}`;
                 const request = {
                     method: method.toUpperCase(),
                     header: [],
                     body: undefined,
                     url: {
-                        raw: `${baseUrl.replace(/\/$/, "")}${path}`,
-                        host: [baseUrl.replace(/https?:\/\//, "")],
+                        raw: `${base.replace(/\/$/, "")}${path}`,
+                        host: [base.replace(/https?:\/\//, "")],
                         path: path.split("/").filter(Boolean),
                     },
                 };
@@ -25,16 +29,20 @@ function generatePostmanCollection(swagger) {
                 if (operation.requestBody && operation.requestBody.content) {
                     const content = operation.requestBody.content;
                     if (content["multipart/form-data"]) {
-                        request.header.push({ key: "Content-Type", value: "multipart/form-data" });
+                        request.header.push({
+                            key: "Content-Type",
+                            value: "multipart/form-data",
+                        });
                         request.body = {
                             mode: "formdata",
-                            formdata: [
-                                { key: "file", type: "file" },
-                            ],
+                            formdata: [{ key: "file", type: "file" }],
                         };
                     }
                     else if (content["application/json"]) {
-                        request.header.push({ key: "Content-Type", value: "application/json" });
+                        request.header.push({
+                            key: "Content-Type",
+                            value: "application/json",
+                        });
                         request.body = {
                             mode: "raw",
                             raw: JSON.stringify(operation.requestBody.example || {}),

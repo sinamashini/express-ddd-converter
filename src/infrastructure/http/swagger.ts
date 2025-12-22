@@ -1,16 +1,26 @@
 import { OpenAPIV3 } from "openapi-types";
 
+const baseUrl =
+  process.env.PUBLIC_BASE_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://express-ddd-converter.vercel.app"
+    : "http://localhost:2200");
+
 export const swaggerSpec: OpenAPIV3.Document = {
   openapi: "3.0.0",
   info: {
     title: "Express DDD Converter API",
     version: "1.0.0",
-    description: "API for converting files between PDF, Markdown, Word and text",
+    description:
+      "API for converting files between PDF, Markdown, Word and text",
   },
   servers: [
     {
-      url: "http://localhost:2200",
-      description: "Local server",
+      url: baseUrl,
+      description:
+        process.env.NODE_ENV === "production"
+          ? "Production server"
+          : "Local server",
     },
   ],
   paths: {

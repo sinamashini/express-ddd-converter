@@ -9,6 +9,7 @@ exports.writeLocalConverted = writeLocalConverted;
 exports.uploadTmp = uploadTmp;
 exports.uploadGenerated = uploadGenerated;
 exports.getPublicUrlForKey = getPublicUrlForKey;
+exports.getContentType = getContentType;
 const path_1 = __importDefault(require("path"));
 const promises_1 = __importDefault(require("fs/promises"));
 const client_s3_1 = require("@aws-sdk/client-s3");
@@ -58,4 +59,15 @@ function getPublicUrlForKey(key) {
         return `https://${s3_1.S3_BUCKET}.${s3_1.S3_ENDPOINT || 's3.amazonaws.com'}/${key}`;
     }
     return null;
+}
+function getContentType(filename) {
+    if (filename.endsWith(".pdf"))
+        return "application/pdf";
+    if (filename.endsWith(".md"))
+        return "text/markdown";
+    if (filename.endsWith(".txt"))
+        return "text/plain";
+    if (filename.endsWith(".docx"))
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    return "application/octet-stream";
 }

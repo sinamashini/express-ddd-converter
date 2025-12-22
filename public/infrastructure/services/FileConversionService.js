@@ -8,8 +8,13 @@ const md_to_pdf_1 = require("md-to-pdf");
 const pdf2md_1 = __importDefault(require("@opendocsg/pdf2md"));
 const pdf_parse_1 = __importDefault(require("pdf-parse"));
 class FileConversionService {
-    async mdToPdf(data) {
-        const pdf = await (0, md_to_pdf_1.mdToPdf)({ content: data.toString() });
+    async mdToPdf(data, options) {
+        const direction = options?.direction === "rtl" ? "rtl" : "ltr";
+        let content = data.toString();
+        if (direction === "rtl") {
+            content = `<div dir="rtl" style="direction: rtl; unicode-bidi: bidi-override; text-align: right;">\n\n${content}\n\n</div>`;
+        }
+        const pdf = await (0, md_to_pdf_1.mdToPdf)({ content });
         return pdf.content;
     }
     async pdfToMd(data) {

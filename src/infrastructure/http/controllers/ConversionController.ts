@@ -15,11 +15,16 @@ export class ConversionController {
         return res.status(400).json({ message: "No file uploaded." });
       }
 
+      // Optional direction parameter: dir=rtl (default is ltr)
+      const dirParam = String((req.query.dir as string) || "").toLowerCase();
+      const direction: "ltr" | "rtl" = dirParam === "rtl" ? "rtl" : "ltr";
+
       // pass buffer and original name to use case
       const downloadUrl = await this.convertFileUseCase.execute(
         req.file.buffer,
         req.file.originalname,
-        type
+        type,
+        { direction }
       );
 
       const ttlMinutes = 30;

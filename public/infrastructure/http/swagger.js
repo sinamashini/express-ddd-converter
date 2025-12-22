@@ -1,6 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.swaggerSpec = void 0;
+const baseUrl = process.env.PUBLIC_BASE_URL ||
+    (process.env.NODE_ENV === "production"
+        ? "https://express-ddd-converter.vercel.app"
+        : "http://localhost:2200");
 exports.swaggerSpec = {
     openapi: "3.0.0",
     info: {
@@ -10,8 +14,10 @@ exports.swaggerSpec = {
     },
     servers: [
         {
-            url: "http://localhost:2200",
-            description: "Local server",
+            url: baseUrl,
+            description: process.env.NODE_ENV === "production"
+                ? "Production server"
+                : "Local server",
         },
     ],
     paths: {

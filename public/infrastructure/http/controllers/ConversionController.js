@@ -11,8 +11,11 @@ class ConversionController {
             if (!req.file || !req.file.buffer) {
                 return res.status(400).json({ message: "No file uploaded." });
             }
+            // Optional direction parameter: dir=rtl (default is ltr)
+            const dirParam = String(req.query.dir || "").toLowerCase();
+            const direction = dirParam === "rtl" ? "rtl" : "ltr";
             // pass buffer and original name to use case
-            const downloadUrl = await this.convertFileUseCase.execute(req.file.buffer, req.file.originalname, type);
+            const downloadUrl = await this.convertFileUseCase.execute(req.file.buffer, req.file.originalname, type, { direction });
             const ttlMinutes = 30;
             const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
             const finalUrl = downloadUrl.startsWith("http")
