@@ -28,13 +28,16 @@ export class ConvertFileUseCase {
   public async execute(
     fileBuffer: Buffer,
     originalName: string,
-    type: ConversionType
+    type: ConversionType,
+    options?: { direction?: "ltr" | "rtl" }
   ): Promise<string> {
     let outputBuffer: Buffer | string;
 
     switch (type) {
       case "md-to-pdf":
-        outputBuffer = await this.conversionService.mdToPdf(fileBuffer);
+        outputBuffer = await this.conversionService.mdToPdf(fileBuffer, {
+          direction: options?.direction,
+        });
         break;
       case "pdf-to-md":
         outputBuffer = await this.conversionService.pdfToMd(fileBuffer);
@@ -49,6 +52,14 @@ export class ConvertFileUseCase {
         throw new Error("Unsupported conversion type");
     }
 
+    // Normalize different possible output types (Buffer, string, Uint8Array)
+    const toBuffer = (data: Buffer | string | Uint8Array | any): Buffer => {
+      if (Buffer.isBuffer(data)) return data;
+      if (typeof data === "string") return Buffer.from(data);
+      if (data instanceof Uint8Array) return Buffer.from(data);
+      return Buffer.from(String(data));
+    };
+
     // create unique filename to avoid collisions (originalName + random suffix)
     const baseName = path.basename(originalName, path.extname(originalName));
     const uniqueSuffix = randomBytes(4).toString("hex");
@@ -61,25 +72,37 @@ export class ConvertFileUseCase {
     await fs.mkdir(convertedDir, { recursive: true });
 
     // Try S3 first using the storage service helpers
-    const tmpKey = `tmp/${baseName}-${uniqueSuffix}${path.extname(originalName)}`;
+    const tmpKey = `tmp/${baseName}-${uniqueSuffix}${path.extname(
+      originalName
+    )}`;
     // upload generated outputs under the `converted/` prefix so URLs match expectations
     const outKey = `converted/${outputFileName}`;
-    const inputBody = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(String(fileBuffer));
+    const inputBody = toBuffer(fileBuffer);
     try {
       await uploadTmp(tmpKey, inputBody, getContentType(originalName));
-      const outBody = Buffer.isBuffer(outputBuffer) ? outputBuffer : Buffer.from(String(outputBuffer));
-      const uploaded = await uploadGenerated(outKey, outBody, getContentType(outputFileName));
+      const outBody = toBuffer(outputBuffer as any);
+      const uploaded = await uploadGenerated(
+        outKey,
+        outBody,
+        getContentType(outputFileName)
+      );
       if (uploaded) {
         const publicUrl = getPublicUrlForKey(outKey);
         if (publicUrl) return publicUrl;
       }
     } catch (e) {
-      console.warn('Storage upload failed, falling back to local write:', (e as Error).message);
+      console.warn(
+        "Storage upload failed, falling back to local write:",
+        (e as Error).message
+      );
     }
 
     // Local fallback: write converted file to `infrastructure/public/converted`
     await ensureConvertedDir();
-    return await writeLocalConverted(outputFileName, Buffer.isBuffer(outputBuffer) ? outputBuffer : Buffer.from(String(outputBuffer)));
+    return await writeLocalConverted(
+      outputFileName,
+      toBuffer(outputBuffer as any)
+    );
   }
 }
 
