@@ -77,16 +77,21 @@ You can open the Swagger UI in your browser once the server is running:
 # start dev server
 npm run dev
 
-# then open
-http://localhost:2200/api/docs
+# then open (dev)
+http://localhost:2200/
 ```
 
-Or fetch the JSON directly:
+In production (for example on Vercel), the base URL will be your deployed domain, e.g.:
 
-```sh
-curl http://localhost:2200/api/openapi.json
-curl http://localhost:2200/api/postman.json
+```text
+https://express-ddd-converter.vercel.app/
 ```
+
+Useful endpoints:
+
+- Swagger UI: `/api/docs` (root `/` redirects here)
+- OpenAPI JSON: `/api/docs.json`
+- Postman collection JSON: `/api/postman.json`
 
 ## 📤 Client upload examples
 
@@ -95,7 +100,13 @@ Use multipart/form-data for file uploads. Do not set the `Content-Type` header m
 - curl example (send a file named `example.md`):
 
 ```sh
-curl -F "file=@example.md" http://localhost:2200/api/convert/md-to-pdf
+curl -F "file=@example.md" "http://localhost:2200/api/convert/md-to-pdf"
+```
+
+- curl example with RTL PDF (Markdown rendered right-to-left):
+
+```sh
+curl -F "file=@example.md" "http://localhost:2200/api/convert/md-to-pdf?dir=rtl"
 ```
 
 - Browser `fetch` (do not set `Content-Type` header):
@@ -119,19 +130,7 @@ If you manually set `Content-Type` to `multipart/form-data` without a boundary, 
 
 ## ⏳ Converted files expiry
 
-Converted files are stored under `infrastructure/public/converted` and are available via the download link for 30 minutes. After 30 minutes the server will automatically delete the converted file.
-
-If you want this folder tracked in Git (for example to include a placeholder), create a `.gitkeep` file inside it and commit that file. Example:
-
-```sh
-# create folder (if missing) and add a .gitkeep so Git tracks the directory
-mkdir -p infrastructure/public/converted
-touch infrastructure/public/converted/.gitkeep
-git add infrastructure/public/converted/.gitkeep
-git commit -m "chore: add .gitkeep for converted files directory"
-```
-
-Note: it's usually recommended *not* to commit generated files (actual converted outputs). Tracking the folder only (via `.gitkeep`) is a harmless way to ensure the directory exists in the repository.
+Converted files are stored under `infrastructure/public/converted` on the server filesystem (and served via the `/converted/...` path) when S3 is not configured or when uploads to S3 fail. They are available via the download link for 30 minutes. After 30 minutes the server (or cleanup job) will automatically delete the converted file.
 
 ## 🧹 Cleanup options and how to run
 
