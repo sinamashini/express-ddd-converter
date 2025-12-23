@@ -1,7 +1,19 @@
-import { mdToPdf } from "md-to-pdf";
+import PDFDocument from "pdfkit";
+import { marked } from "marked";
 import pdf from "@opendocsg/pdf2md";
 import pdfParse from "pdf-parse";
 import { IConversionService } from "../../domain/services/IConversionService";
+
+// Helper to strip HTML tags for plain text rendering in PDF
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"');
+}
 
 export class FileConversionService implements IConversionService {
   public async mdToPdf(
@@ -9,13 +21,100 @@ export class FileConversionService implements IConversionService {
     options?: { direction?: "ltr" | "rtl" }
   ): Promise<Buffer> {
     const direction = options?.direction === "rtl" ? "rtl" : "ltr";
-    let content = data.toString();
-    if (direction === "rtl") {
-      content = `<div dir="rtl" style="direction: rtl; unicode-bidi: bidi-override; text-align: right;">\n\n${content}\n\n</div>`;
-    }
+    const content = data.toString();
 
-    const pdf = await mdToPdf({ content });
-    return pdf.content as Buffer;
+    // Parse markdown to HTML tokens
+    const tokens = marked.lexer(content);
+
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({
+        size: "A4",
+        margins: { top: 50, bottom: 50, left: 50, right: 50 },
+      });
+
+      const chunks: Buffer[] = [];
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+
+      // Set default font
+      doc.font("Helvetica");
+
+      // Process markdown tokens
+      for (const token of tokens) {
+        switch (token.type) {
+          case "heading":
+            const fontSize = 24 - (token.depth - 1) * 3; // h1=24, h2=21, h3=18...
+            doc.fontSize(fontSize).font("Helvetica-Bold");
+            doc.text(stripHtml(token.text), {
+              align: direction === "rtl" ? "right" : "left",
+            });
+            doc.moveDown(0.5);
+            doc.font("Helvetica").fontSize(12);
+            break;
+
+          case "paragraph":
+            doc.fontSize(12).font("Helvetica");
+            doc.text(stripHtml(token.text), {
+              align: direction === "rtl" ? "right" : "left",
+            });
+            doc.moveDown();
+            break;
+
+          case "code":
+            doc.fontSize(10).font("Courier");
+            doc.text(token.text, { align: "left" });
+            doc.moveDown();
+            doc.font("Helvetica").fontSize(12);
+            break;
+
+          case "list":
+            doc.fontSize(12);
+            for (const item of token.items) {
+              const bullet = token.ordered ? `${token.start || 1}. ` : "• ";
+              doc.text(bullet + stripHtml(item.text), {
+                align: direction === "rtl" ? "right" : "left",
+                indent: 20,
+              });
+            }
+            doc.moveDown();
+            break;
+
+          case "blockquote":
+            doc.fontSize(11).font("Helvetica-Oblique");
+            doc.text(stripHtml(token.text || ""), {
+              align: direction === "rtl" ? "right" : "left",
+              indent: 20,
+            });
+            doc.moveDown();
+            doc.font("Helvetica").fontSize(12);
+            break;
+
+          case "hr":
+            doc.moveDown();
+            doc
+              .moveTo(50, doc.y)
+              .lineTo(doc.page.width - 50, doc.y)
+              .stroke();
+            doc.moveDown();
+            break;
+
+          case "space":
+            doc.moveDown();
+            break;
+
+          default:
+            // For any other token types, try to render raw text
+            if ("text" in token && token.text) {
+              doc.text(stripHtml(token.text as string));
+              doc.moveDown();
+            }
+            break;
+        }
+      }
+
+      doc.end();
+    });
   }
 
   public async pdfToMd(data: Buffer): Promise<string> {
