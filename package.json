@@ -24,12 +24,12 @@
     "marked": "^17.0.1",
     "multer": "^2.0.1",
     "node-cron": "^3.0.2",
-    "pdfjs-dist": "^5.4.449",
     "pdfkit": "^0.17.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^4.6.3",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "unpdf": "^1.4.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",

@@ -2,7 +2,7 @@ import PDFDocument from "pdfkit";
 import { marked } from "marked";
 // @ts-ignore - pdf2md has incorrect type definitions
 import pdf2md from "@opendocsg/pdf2md";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { extractText } from "unpdf";
 import { IConversionService } from "../../domain/services/IConversionService.js";
 
 // Helper to strip HTML tags for plain text rendering in PDF
@@ -125,21 +125,9 @@ export class FileConversionService implements IConversionService {
   }
 
   public async pdfToTxt(data: Buffer): Promise<string> {
-    // Use pdfjs-dist to extract text (works in serverless environments)
-    const uint8Array = new Uint8Array(data);
-    const pdf = await getDocument({ data: uint8Array }).promise;
-    
-    let fullText = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(" ");
-      fullText += pageText + "\n\n";
-    }
-    
-    return fullText.trim();
+    // Use unpdf to extract text (works in serverless environments without DOM)
+    const { text } = await extractText(data);
+    return Array.isArray(text) ? text.join("\n\n") : text;
   }
 
   public async pdfToWord(data: Buffer): Promise<Buffer> {
