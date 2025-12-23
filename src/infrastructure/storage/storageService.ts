@@ -1,9 +1,13 @@
 import path from 'path';
+import { fileURLToPath } from "url";
 import fs from 'fs/promises';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { s3Client, S3_BUCKET, S3_ENDPOINT, S3_PUBLIC_BASE_URL } from './s3';
+import { s3Client, S3_BUCKET, S3_ENDPOINT, S3_PUBLIC_BASE_URL } from "./s3.js";
 
-const convertedDir = path.join(__dirname, '../../infrastructure/public/converted');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const convertedDir = path.join(__dirname, "../public/converted");
 
 export async function ensureConvertedDir() {
   await fs.mkdir(convertedDir, { recursive: true });

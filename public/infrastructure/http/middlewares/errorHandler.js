@@ -1,11 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.errorHandler = void 0;
-const multer_1 = require("multer");
-const CustomError_1 = require("../../../errors/CustomError");
-const errorHandler = (err, _req, res, _next) => {
+import { MulterError } from "multer";
+import { CustomError } from "../../../errors/CustomError.js";
+export const errorHandler = (err, _req, res, _next) => {
     console.error(err.stack);
-    if (err instanceof multer_1.MulterError) {
+    if (err instanceof MulterError) {
         res
             .status(res.statusCode || 500)
             .json({ message: "File upload error", error: err.message });
@@ -15,7 +12,7 @@ const errorHandler = (err, _req, res, _next) => {
         res.status(400).json({ message: "Validation Error", error: err.message });
         return;
     }
-    if (err instanceof CustomError_1.CustomError) {
+    if (err instanceof CustomError) {
         const { statusCode, errors, logging } = err;
         if (logging) {
             console.error(JSON.stringify({
@@ -30,4 +27,3 @@ const errorHandler = (err, _req, res, _next) => {
     console.error(JSON.stringify(err, null, 2));
     res.status(500).send({ errors: [{ message: "Something went wrong" }] });
 };
-exports.errorHandler = errorHandler;

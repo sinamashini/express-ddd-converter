@@ -1,11 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.swaggerSpec = void 0;
 const baseUrl = process.env.PUBLIC_BASE_URL ||
     (process.env.NODE_ENV === "production"
         ? "https://express-ddd-converter.vercel.app"
         : "http://localhost:2200");
-exports.swaggerSpec = {
+export const swaggerSpec = {
     openapi: "3.0.0",
     info: {
         title: "Express DDD Converter API",
@@ -125,6 +122,38 @@ exports.swaggerSpec = {
                 },
             },
         },
+        "/api/health": {
+            get: {
+                summary: "Health check endpoint",
+                description: "Check API and S3 storage status",
+                responses: {
+                    "200": {
+                        description: "Health status",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        status: { type: "string", example: "ok" },
+                                        timestamp: { type: "string", format: "date-time" },
+                                        s3: {
+                                            type: "object",
+                                            properties: {
+                                                configured: { type: "boolean" },
+                                                status: { type: "string", enum: ["connected", "not_configured", "error"] },
+                                                bucket: { type: "string" },
+                                                endpoint: { type: "string" },
+                                            },
+                                        },
+                                        ttl: { type: "string", example: "30 minutes" },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
     },
 };
-exports.default = exports.swaggerSpec;
+export default swaggerSpec;

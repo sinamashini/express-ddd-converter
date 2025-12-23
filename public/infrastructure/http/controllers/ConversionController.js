@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConversionController = void 0;
-class ConversionController {
+export class ConversionController {
     convertFileUseCase;
     constructor(convertFileUseCase) {
         this.convertFileUseCase = convertFileUseCase;
@@ -36,4 +33,3 @@ class ConversionController {
     pdfToTxt = (req, res, next) => this.handleConversion(req, res, next, "pdf-to-txt");
     pdfToWord = (req, res, next) => this.handleConversion(req, res, next, "pdf-to-word");
 }
-exports.ConversionController = ConversionController;

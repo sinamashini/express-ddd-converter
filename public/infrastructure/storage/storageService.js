@@ -1,37 +1,28 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ensureConvertedDir = ensureConvertedDir;
-exports.convertedDirPath = convertedDirPath;
-exports.writeLocalConverted = writeLocalConverted;
-exports.uploadTmp = uploadTmp;
-exports.uploadGenerated = uploadGenerated;
-exports.getPublicUrlForKey = getPublicUrlForKey;
-exports.getContentType = getContentType;
-const path_1 = __importDefault(require("path"));
-const promises_1 = __importDefault(require("fs/promises"));
-const client_s3_1 = require("@aws-sdk/client-s3");
-const s3_1 = require("./s3");
-const convertedDir = path_1.default.join(__dirname, '../../infrastructure/public/converted');
-async function ensureConvertedDir() {
-    await promises_1.default.mkdir(convertedDir, { recursive: true });
+import path from 'path';
+import { fileURLToPath } from "url";
+import fs from 'fs/promises';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { s3Client, S3_BUCKET, S3_ENDPOINT, S3_PUBLIC_BASE_URL } from "./s3.js";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const convertedDir = path.join(__dirname, "../public/converted");
+export async function ensureConvertedDir() {
+    await fs.mkdir(convertedDir, { recursive: true });
 }
-function convertedDirPath() {
+export function convertedDirPath() {
     return convertedDir;
 }
-async function writeLocalConverted(filename, body) {
+export async function writeLocalConverted(filename, body) {
     await ensureConvertedDir();
-    const outPath = path_1.default.join(convertedDir, filename);
-    await promises_1.default.writeFile(outPath, body);
+    const outPath = path.join(convertedDir, filename);
+    await fs.writeFile(outPath, body);
     return `/converted/${filename}`;
 }
-async function uploadTmp(key, body, contentType) {
-    if (!s3_1.s3Client || !s3_1.S3_BUCKET)
+export async function uploadTmp(key, body, contentType) {
+    if (!s3Client || !S3_BUCKET)
         return false;
-    await s3_1.s3Client.send(new client_s3_1.PutObjectCommand({
-        Bucket: s3_1.S3_BUCKET,
+    await s3Client.send(new PutObjectCommand({
+        Bucket: S3_BUCKET,
         Key: key,
         Body: body,
         ACL: 'private',
@@ -39,11 +30,11 @@ async function uploadTmp(key, body, contentType) {
     }));
     return true;
 }
-async function uploadGenerated(key, body, contentType) {
-    if (!s3_1.s3Client || !s3_1.S3_BUCKET)
+export async function uploadGenerated(key, body, contentType) {
+    if (!s3Client || !S3_BUCKET)
         return false;
-    await s3_1.s3Client.send(new client_s3_1.PutObjectCommand({
-        Bucket: s3_1.S3_BUCKET,
+    await s3Client.send(new PutObjectCommand({
+        Bucket: S3_BUCKET,
         Key: key,
         Body: body,
         ACL: 'public-read',
@@ -51,16 +42,16 @@ async function uploadGenerated(key, body, contentType) {
     }));
     return true;
 }
-function getPublicUrlForKey(key) {
-    if (s3_1.S3_PUBLIC_BASE_URL) {
-        return `${s3_1.S3_PUBLIC_BASE_URL.replace(/\/$/, '')}/${key}`;
+export function getPublicUrlForKey(key) {
+    if (S3_PUBLIC_BASE_URL) {
+        return `${S3_PUBLIC_BASE_URL.replace(/\/$/, '')}/${key}`;
     }
-    if (s3_1.S3_BUCKET) {
-        return `https://${s3_1.S3_BUCKET}.${s3_1.S3_ENDPOINT || 's3.amazonaws.com'}/${key}`;
+    if (S3_BUCKET) {
+        return `https://${S3_BUCKET}.${S3_ENDPOINT || 's3.amazonaws.com'}/${key}`;
     }
     return null;
 }
-function getContentType(filename) {
+export function getContentType(filename) {
     if (filename.endsWith(".pdf"))
         return "application/pdf";
     if (filename.endsWith(".md"))

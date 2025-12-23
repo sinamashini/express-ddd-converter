@@ -1,8 +1,9 @@
 import PDFDocument from "pdfkit";
 import { marked } from "marked";
-import pdf from "@opendocsg/pdf2md";
+// @ts-ignore - pdf2md has incorrect type definitions
+import pdf2md from "@opendocsg/pdf2md";
 import pdfParse from "pdf-parse";
-import { IConversionService } from "../../domain/services/IConversionService";
+import { IConversionService } from "../../domain/services/IConversionService.js";
 
 // Helper to strip HTML tags for plain text rendering in PDF
 function stripHtml(html: string): string {
@@ -118,7 +119,8 @@ export class FileConversionService implements IConversionService {
   }
 
   public async pdfToMd(data: Buffer): Promise<string> {
-    const markdown = await pdf(data);
+    // Cast to any to work around incorrect type definitions
+    const markdown = await (pdf2md as any)(data);
     return markdown;
   }
 

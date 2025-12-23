@@ -1,6 +1,7 @@
 {
   "name": "express-ddd-converter",
   "version": "1.0.0",
+  "type": "module",
   "description": "It is a simple express app that handles different conversions like PDF to Markdown, Markdown to PDF, and more.",
   "main": "public/main.js",
   "scripts": {

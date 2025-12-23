@@ -1,7 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const CustomError_1 = require("./CustomError");
-class BadRequestError extends CustomError_1.CustomError {
+import { CustomError } from "./CustomError.js";
+export default class BadRequestError extends CustomError {
     static _statusCode = 400;
     _code;
     _logging;
@@ -24,4 +22,3 @@ class BadRequestError extends CustomError_1.CustomError {
         return this._logging;
     }
 }
-exports.default = BadRequestError;

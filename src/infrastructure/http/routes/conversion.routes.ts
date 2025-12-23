@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { ConversionController } from "../controllers/ConversionController";
-import { uploadMiddleware } from "../middlewares/upload.middleware";
-import { ConvertFileUseCase } from "../../../application/use-cases/ConvertFileUseCase";
-import { FileConversionService } from "../../services/FileConversionService";
+import { ConversionController } from "../controllers/ConversionController.js";
+import { uploadMiddleware } from "../middlewares/upload.middleware.js";
+import { ConvertFileUseCase } from "../../../application/use-cases/ConvertFileUseCase.js";
+import { FileConversionService } from "../../services/FileConversionService.js";
 
 // Simple middleware to ensure the request has a multipart/form-data Content-Type
 function ensureMultipart(req: any, res: any, next: any) {

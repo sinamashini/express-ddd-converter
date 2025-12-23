@@ -1,17 +1,20 @@
 import path from 'path';
+import { createRequire } from "module";
+import { S3Client } from "@aws-sdk/client-s3";
+
 // Lightweight S3 client initializer used across the app
+const require = createRequire(import.meta.url);
 let config: any = {};
 try {
-  config = require(path.join(process.cwd(), 'configs'));
+  config = require(path.join(process.cwd(), "configs"));
 } catch (e) {
   config = {};
 }
 
 const S3_BUCKET = config.S3_BUCKET || process.env.S3_BUCKET;
 const S3_ENDPOINT = config.S3_ENDPOINT || process.env.S3_ENDPOINT;
-const S3_PUBLIC_BASE_URL = config.S3_PUBLIC_BASE_URL || process.env.S3_PUBLIC_BASE_URL;
-
-import { S3Client } from '@aws-sdk/client-s3';
+const S3_PUBLIC_BASE_URL =
+  config.S3_PUBLIC_BASE_URL || process.env.S3_PUBLIC_BASE_URL;
 
 let s3Client: S3Client | null = null;
 if (

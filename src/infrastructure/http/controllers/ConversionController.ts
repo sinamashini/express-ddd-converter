@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { ConvertFileUseCase } from "../../../application/use-cases/ConvertFileUseCase";
+import { ConvertFileUseCase } from "../../../application/use-cases/ConvertFileUseCase.js";
 
 export class ConversionController {
   constructor(private readonly convertFileUseCase: ConvertFileUseCase) {}

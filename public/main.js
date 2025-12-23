@@ -1,43 +1,76 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const path_1 = __importDefault(require("path"));
-const conversion_routes_1 = require("./infrastructure/http/routes/conversion.routes");
-const errorHandler_1 = require("./infrastructure/http/middlewares/errorHandler");
-const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
-const swagger_1 = __importDefault(require("./infrastructure/http/swagger"));
-const node_cron_1 = __importDefault(require("node-cron"));
-const postman_1 = require("./infrastructure/http/postman");
-const client_s3_1 = require("@aws-sdk/client-s3");
-const s3_1 = require("./infrastructure/storage/s3");
-const app = (0, express_1.default)();
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import { conversionRouter } from "./infrastructure/http/routes/conversion.routes.js";
+import { errorHandler } from "./infrastructure/http/middlewares/errorHandler.js";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./infrastructure/http/swagger.js";
+import cron from "node-cron";
+import { generatePostmanCollection } from "./infrastructure/http/postman.js";
+import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { s3Client, S3_BUCKET, S3_ENDPOINT, } from "./infrastructure/storage/s3.js";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const app = express();
 const PORT = process.env.PORT || 2200;
 // Middleware to parse JSON bodies
-app.use(express_1.default.json());
+app.use(express.json());
 // Serve locally stored converted files (fallback when S3 is not used)
-const convertedStaticDir = path_1.default.join(__dirname, "infrastructure/public/converted");
-app.use("/converted", express_1.default.static(convertedStaticDir));
-// Swagger UI
-app.use("/api/docs", swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swagger_1.default));
+const convertedStaticDir = path.join(__dirname, "infrastructure/public/converted");
+app.use("/converted", express.static(convertedStaticDir));
+// Swagger UI - use CDN for assets to work on Vercel
+const swaggerOptions = {
+    customCssUrl: "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css",
+    customJs: [
+        "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.js",
+    ],
+};
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerOptions));
 // Redirect root to API docs for easy discovery
 app.get("/", (_req, res) => {
     res.redirect("/api/docs");
 });
-app.get("/api/docs.json", (_req, res) => res.json(swagger_1.default));
+app.get("/api/docs.json", (_req, res) => res.json(swaggerSpec));
 app.get("/api/postman.json", (req, res) => {
     try {
         const proto = req.protocol;
         const host = req.get("host");
         const base = `${proto}://${host}`;
-        const collection = (0, postman_1.generatePostmanCollection)(swagger_1.default, base);
+        const collection = generatePostmanCollection(swaggerSpec, base);
         res.json(collection);
     }
     catch (err) {
         res.status(500).json({ error: "Failed to generate postman collection" });
     }
+});
+// Health check endpoint to verify S3 configuration
+app.get("/api/health", async (_req, res) => {
+    const health = {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        s3: {
+            configured: !!(s3Client && S3_BUCKET),
+            bucket: S3_BUCKET ? `${S3_BUCKET.substring(0, 3)}***` : null,
+            endpoint: S3_ENDPOINT || "s3.amazonaws.com",
+        },
+        ttl: "30 minutes",
+    };
+    if (s3Client && S3_BUCKET) {
+        try {
+            // Test S3 connectivity by listing objects (limited to 1)
+            await s3Client.send(new ListObjectsV2Command({ Bucket: S3_BUCKET, MaxKeys: 1 }));
+            health.s3.status = "connected";
+        }
+        catch (err) {
+            health.s3.status = "error";
+            health.s3.error = err.message;
+        }
+    }
+    else {
+        health.s3.status = "not_configured";
+    }
+    res.json(health);
 });
 // Cron job: run every minute to delete converted files older than TTL
 const TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -47,11 +80,11 @@ const TTL_MS = 30 * 60 * 1000; // 30 minutes
         const TTL_MS_S3 = 30 * 60 * 1000;
         const prefixes = ["tmp/", "generated/", "converted/"];
         async function cleanupS3Once() {
-            if (!s3_1.s3Client || !s3_1.S3_BUCKET)
+            if (!s3Client || !S3_BUCKET)
                 return;
             for (const prefix of prefixes) {
                 try {
-                    const listResp = await s3_1.s3Client.send(new client_s3_1.ListObjectsV2Command({ Bucket: s3_1.S3_BUCKET, Prefix: prefix }));
+                    const listResp = await s3Client.send(new ListObjectsV2Command({ Bucket: S3_BUCKET, Prefix: prefix }));
                     const objs = listResp.Contents || [];
                     for (const obj of objs) {
                         try {
@@ -59,7 +92,7 @@ const TTL_MS = 30 * 60 * 1000; // 30 minutes
                                 ? new Date(obj.LastModified).getTime()
                                 : 0;
                             if (Date.now() - lastMod >= TTL_MS_S3) {
-                                await s3_1.s3Client.send(new client_s3_1.DeleteObjectCommand({ Bucket: s3_1.S3_BUCKET, Key: obj.Key }));
+                                await s3Client.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: obj.Key }));
                             }
                         }
                         catch (err) {
@@ -74,7 +107,7 @@ const TTL_MS = 30 * 60 * 1000; // 30 minutes
         }
         // run on startup and every minute via cron
         cleanupS3Once().catch(() => { });
-        node_cron_1.default.schedule("* * * * *", () => {
+        cron.schedule("* * * * *", () => {
             cleanupS3Once().catch(() => { });
         });
     }
@@ -83,8 +116,8 @@ const TTL_MS = 30 * 60 * 1000; // 30 minutes
     }
 })();
 // API Routes
-app.use("/api/convert", conversion_routes_1.conversionRouter);
-app.use(errorHandler_1.errorHandler);
+app.use("/api/convert", conversionRouter);
+app.use(errorHandler);
 app.listen(PORT, () => {
     console.log(`🚀 Server is running at http://localhost:${PORT}`);
 });
