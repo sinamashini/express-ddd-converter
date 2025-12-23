@@ -24,8 +24,15 @@ const convertedStaticDir = path.join(
 );
 app.use("/converted", express.static(convertedStaticDir));
 
-// Swagger UI
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger UI - use CDN for assets to work on Vercel
+const swaggerOptions = {
+  customCssUrl: "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css",
+  customJs: [
+    "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.js",
+  ],
+};
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerOptions));
 // Redirect root to API docs for easy discovery
 app.get("/", (_req, res) => {
   res.redirect("/api/docs");
@@ -41,6 +48,37 @@ app.get("/api/postman.json", (req: any, res: any) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to generate postman collection" });
   }
+});
+
+// Health check endpoint to verify S3 configuration
+app.get("/api/health", async (_req: any, res: any) => {
+  const health: any = {
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    s3: {
+      configured: !!(s3Client && S3_BUCKET),
+      bucket: S3_BUCKET ? `${S3_BUCKET.substring(0, 3)}***` : null,
+      endpoint: S3_ENDPOINT || "s3.amazonaws.com",
+    },
+    ttl: "30 minutes",
+  };
+
+  if (s3Client && S3_BUCKET) {
+    try {
+      // Test S3 connectivity by listing objects (limited to 1)
+      await s3Client.send(
+        new ListObjectsV2Command({ Bucket: S3_BUCKET, MaxKeys: 1 })
+      );
+      health.s3.status = "connected";
+    } catch (err: any) {
+      health.s3.status = "error";
+      health.s3.error = err.message;
+    }
+  } else {
+    health.s3.status = "not_configured";
+  }
+
+  res.json(health);
 });
 
 // Cron job: run every minute to delete converted files older than TTL

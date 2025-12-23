@@ -128,6 +128,38 @@ export const swaggerSpec: OpenAPIV3.Document = {
         },
       },
     },
+    "/api/health": {
+      get: {
+        summary: "Health check endpoint",
+        description: "Check API and S3 storage status",
+        responses: {
+          "200": {
+            description: "Health status",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: { type: "string", example: "ok" },
+                    timestamp: { type: "string", format: "date-time" },
+                    s3: {
+                      type: "object",
+                      properties: {
+                        configured: { type: "boolean" },
+                        status: { type: "string", enum: ["connected", "not_configured", "error"] },
+                        bucket: { type: "string" },
+                        endpoint: { type: "string" },
+                      },
+                    },
+                    ttl: { type: "string", example: "30 minutes" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 };
 
