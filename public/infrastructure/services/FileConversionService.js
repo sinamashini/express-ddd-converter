@@ -2,7 +2,7 @@ import PDFDocument from "pdfkit";
 import { marked } from "marked";
 // @ts-ignore - pdf2md has incorrect type definitions
 import pdf2md from "@opendocsg/pdf2md";
-import pdfParse from "pdf-parse";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 // Helper to strip HTML tags for plain text rendering in PDF
 function stripHtml(html) {
     return html
@@ -104,8 +104,19 @@ export class FileConversionService {
         return markdown;
     }
     async pdfToTxt(data) {
-        const result = await pdfParse(data);
-        return result.text;
+        // Use pdfjs-dist to extract text (works in serverless environments)
+        const uint8Array = new Uint8Array(data);
+        const pdf = await getDocument({ data: uint8Array }).promise;
+        let fullText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items
+                .map((item) => item.str)
+                .join(" ");
+            fullText += pageText + "\n\n";
+        }
+        return fullText.trim();
     }
     async pdfToWord(data) {
         // NOTE: PDF-to-Word conversion is complex.
