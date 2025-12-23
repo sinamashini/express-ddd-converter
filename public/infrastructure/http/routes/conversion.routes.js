@@ -1,11 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.conversionRouter = void 0;
-const express_1 = require("express");
-const ConversionController_1 = require("../controllers/ConversionController");
-const upload_middleware_1 = require("../middlewares/upload.middleware");
-const ConvertFileUseCase_1 = require("../../../application/use-cases/ConvertFileUseCase");
-const FileConversionService_1 = require("../../services/FileConversionService");
+import { Router } from "express";
+import { ConversionController } from "../controllers/ConversionController.js";
+import { uploadMiddleware } from "../middlewares/upload.middleware.js";
+import { ConvertFileUseCase } from "../../../application/use-cases/ConvertFileUseCase.js";
+import { FileConversionService } from "../../services/FileConversionService.js";
 // Simple middleware to ensure the request has a multipart/form-data Content-Type
 function ensureMultipart(req, res, next) {
     const ct = req.headers && req.headers['content-type'];
@@ -14,14 +11,13 @@ function ensureMultipart(req, res, next) {
     }
     next();
 }
-const router = (0, express_1.Router)();
-exports.conversionRouter = router;
+const router = Router();
 // --- Dependency Injection ---
-const fileConversionService = new FileConversionService_1.FileConversionService();
-const convertFileUseCase = new ConvertFileUseCase_1.ConvertFileUseCase(fileConversionService);
-const conversionController = new ConversionController_1.ConversionController(convertFileUseCase);
+const fileConversionService = new FileConversionService();
+const convertFileUseCase = new ConvertFileUseCase(fileConversionService);
+const conversionController = new ConversionController(convertFileUseCase);
 // --- Routes ---
-router.post("/md-to-pdf", ensureMultipart, (0, upload_middleware_1.uploadMiddleware)(".md"), async (req, res, next) => {
+router.post("/md-to-pdf", ensureMultipart, uploadMiddleware(".md"), async (req, res, next) => {
     try {
         await conversionController.mdToPdf(req, res, next);
     }
@@ -29,7 +25,7 @@ router.post("/md-to-pdf", ensureMultipart, (0, upload_middleware_1.uploadMiddlew
         next(err);
     }
 });
-router.post("/pdf-to-md", ensureMultipart, (0, upload_middleware_1.uploadMiddleware)(".pdf"), async (req, res, next) => {
+router.post("/pdf-to-md", ensureMultipart, uploadMiddleware(".pdf"), async (req, res, next) => {
     try {
         await conversionController.pdfToMd(req, res, next);
     }
@@ -37,7 +33,7 @@ router.post("/pdf-to-md", ensureMultipart, (0, upload_middleware_1.uploadMiddlew
         next(err);
     }
 });
-router.post("/pdf-to-txt", ensureMultipart, (0, upload_middleware_1.uploadMiddleware)(".pdf"), async (req, res, next) => {
+router.post("/pdf-to-txt", ensureMultipart, uploadMiddleware(".pdf"), async (req, res, next) => {
     try {
         await conversionController.pdfToTxt(req, res, next);
     }
@@ -45,7 +41,7 @@ router.post("/pdf-to-txt", ensureMultipart, (0, upload_middleware_1.uploadMiddle
         next(err);
     }
 });
-router.post("/pdf-to-word", ensureMultipart, (0, upload_middleware_1.uploadMiddleware)(".pdf"), async (req, res, next) => {
+router.post("/pdf-to-word", ensureMultipart, uploadMiddleware(".pdf"), async (req, res, next) => {
     try {
         await conversionController.pdfToWord(req, res, next);
     }
@@ -53,3 +49,4 @@ router.post("/pdf-to-word", ensureMultipart, (0, upload_middleware_1.uploadMiddl
         next(err);
     }
 });
+export { router as conversionRouter };

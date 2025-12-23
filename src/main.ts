@@ -1,15 +1,23 @@
 import express from "express";
 import path from "path";
-import { conversionRouter } from "./infrastructure/http/routes/conversion.routes";
-import { errorHandler } from "./infrastructure/http/middlewares/errorHandler";
+import { fileURLToPath } from "url";
+import { conversionRouter } from "./infrastructure/http/routes/conversion.routes.js";
+import { errorHandler } from "./infrastructure/http/middlewares/errorHandler.js";
 import { ErrorRequestHandler } from "express";
 import swaggerUi from "swagger-ui-express";
-import swaggerSpec from "./infrastructure/http/swagger";
+import swaggerSpec from "./infrastructure/http/swagger.js";
 import fs from "fs/promises";
 import cron from "node-cron";
-import { generatePostmanCollection } from "./infrastructure/http/postman";
+import { generatePostmanCollection } from "./infrastructure/http/postman.js";
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { s3Client, S3_BUCKET, S3_ENDPOINT } from "./infrastructure/storage/s3";
+import {
+  s3Client,
+  S3_BUCKET,
+  S3_ENDPOINT,
+} from "./infrastructure/storage/s3.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 2200;

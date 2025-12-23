@@ -1,21 +1,18 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConvertFileUseCase = void 0;
-const promises_1 = __importDefault(require("fs/promises"));
-const path_1 = __importDefault(require("path"));
-const crypto_1 = require("crypto");
-const storageService_1 = require("../../infrastructure/storage/storageService");
-const storageService_2 = require("../../infrastructure/storage/storageService");
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+import { randomBytes } from "crypto";
+import { uploadTmp, uploadGenerated, writeLocalConverted, ensureConvertedDir, getPublicUrlForKey, } from "../../infrastructure/storage/storageService.js";
+import { getContentType } from "../../infrastructure/storage/storageService.js";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const outputExtensions = {
     "md-to-pdf": ".pdf",
     "pdf-to-md": ".md",
     "pdf-to-txt": ".txt",
     "pdf-to-word": ".docx",
 };
-class ConvertFileUseCase {
+export class ConvertFileUseCase {
     conversionService;
     constructor(conversionService) {
         this.conversionService = conversionService;
@@ -52,23 +49,23 @@ class ConvertFileUseCase {
             return Buffer.from(String(data));
         };
         // create unique filename to avoid collisions (originalName + random suffix)
-        const baseName = path_1.default.basename(originalName, path_1.default.extname(originalName));
-        const uniqueSuffix = (0, crypto_1.randomBytes)(4).toString("hex");
+        const baseName = path.basename(originalName, path.extname(originalName));
+        const uniqueSuffix = randomBytes(4).toString("hex");
         const outputFileName = `${baseName}-${uniqueSuffix}${outputExtensions[type]}`;
         // Ensure the output directory exists (used as fallback)
-        const convertedDir = path_1.default.join(__dirname, "../../infrastructure/public/converted");
-        await promises_1.default.mkdir(convertedDir, { recursive: true });
+        const convertedDir = path.join(__dirname, "../../infrastructure/public/converted");
+        await fs.mkdir(convertedDir, { recursive: true });
         // Try S3 first using the storage service helpers
-        const tmpKey = `tmp/${baseName}-${uniqueSuffix}${path_1.default.extname(originalName)}`;
+        const tmpKey = `tmp/${baseName}-${uniqueSuffix}${path.extname(originalName)}`;
         // upload generated outputs under the `converted/` prefix so URLs match expectations
         const outKey = `converted/${outputFileName}`;
         const inputBody = toBuffer(fileBuffer);
         try {
-            await (0, storageService_1.uploadTmp)(tmpKey, inputBody, (0, storageService_2.getContentType)(originalName));
+            await uploadTmp(tmpKey, inputBody, getContentType(originalName));
             const outBody = toBuffer(outputBuffer);
-            const uploaded = await (0, storageService_1.uploadGenerated)(outKey, outBody, (0, storageService_2.getContentType)(outputFileName));
+            const uploaded = await uploadGenerated(outKey, outBody, getContentType(outputFileName));
             if (uploaded) {
-                const publicUrl = (0, storageService_1.getPublicUrlForKey)(outKey);
+                const publicUrl = getPublicUrlForKey(outKey);
                 if (publicUrl)
                     return publicUrl;
             }
@@ -77,9 +74,8 @@ class ConvertFileUseCase {
             console.warn("Storage upload failed, falling back to local write:", e.message);
         }
         // Local fallback: write converted file to `infrastructure/public/converted`
-        await (0, storageService_1.ensureConvertedDir)();
-        return await (0, storageService_1.writeLocalConverted)(outputFileName, toBuffer(outputBuffer));
+        await ensureConvertedDir();
+        return await writeLocalConverted(outputFileName, toBuffer(outputBuffer));
     }
 }
-exports.ConvertFileUseCase = ConvertFileUseCase;
 // getContentType is provided by storageService

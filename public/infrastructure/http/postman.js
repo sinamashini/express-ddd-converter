@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.generatePostmanCollection = generatePostmanCollection;
-function generatePostmanCollection(swagger, baseUrl) {
+export function generatePostmanCollection(swagger, baseUrl) {
     const defaultBase = (swagger.servers && swagger.servers[0] && swagger.servers[0].url) ||
         "http://localhost:2200";
     const base = baseUrl || defaultBase;
@@ -63,4 +60,4 @@ function generatePostmanCollection(swagger, baseUrl) {
     };
     return collection;
 }
-exports.default = generatePostmanCollection;
+export default generatePostmanCollection;

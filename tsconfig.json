@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
-    "target": "es2022",
-    "module": "commonjs",
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "rootDir": "./src",
-    "outDir": "./dist",
+    "outDir": "./public",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
